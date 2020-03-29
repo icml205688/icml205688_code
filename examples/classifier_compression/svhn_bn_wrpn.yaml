@@ -25,24 +25,24 @@ quantizers:
         wts: 8
       features.0:
         acts: null
-        wts: 4
+        wts: 8
       features.10:
         acts: null
-        wts: 8
+        wts: 3
       features.14:
         acts: null
-        wts: 8
+        wts: 3
       features.17:
         acts: null
-        wts: 8
+        wts: 3
       features.21:
         acts: null
-        wts: 8
+        wts: 3
       features.3:
         acts: null
-        wts: 4
+        wts: 3
       features.7:
         acts: null
-        wts: 8
+        wts: 3
     bits_weights: 8
     class: WRPNQuantizer

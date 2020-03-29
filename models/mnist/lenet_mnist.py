@@ -14,8 +14,10 @@
 # limitations under the License.
 #
 
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import numpy as np 
 
 __all__ = ['lenet_mnist']
 
@@ -29,6 +31,26 @@ class Lenet(nn.Module):
         self.fc2 = nn.Linear(500, 10)
 
     def forward(self, x):
+        #print("weights sizes")
+        #print(self.conv1.weight.size())
+        layer_w = self.fc2.weight
+        sigma = layer_w.std().data.cpu().numpy()
+        layer_w_numpy = layer_w.data.cpu().numpy()
+        scale = 0.17
+        noise = np.random.normal(0, scale*sigma, layer_w.size())
+        w_noise = np.add(layer_w_numpy, noise)
+        w_noise_tensor = torch.tensor(w_noise)
+        #print(w_noise_tensor.size())
+        w_noise_tensor = w_noise_tensor.to('cuda')
+        w_noise = torch.nn.Parameter(w_noise_tensor.float())
+        self.fc2.weight = w_noise 
+        #print("---------------------")
+        #print(self.conv2.weight.size())
+        #print("---------------------")
+        #print(self.fc1.weight.size())
+        #print("---------------------")
+        #print(self.fc2.weight.size())
+        #print("---------------------")
         x = self.pool(F.relu(self.conv1(x)))
         x = self.pool(F.relu(self.conv2(x)))
         x = x.view(-1, 800)

@@ -22,16 +22,16 @@ quantizers:
     bits_overrides:
       conv1:
         acts: null
-        wts: 2
+        wts: 5
       conv2:
         acts: null
-        wts: 2
+        wts: 3
       fc1:
         acts: null
-        wts: 4
+        wts: 3
       fc2:
         acts: null
-        wts: 4
+        wts: 3
       fc3:
         acts: null
         wts: 4

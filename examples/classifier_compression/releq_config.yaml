@@ -1,4 +1,0 @@
-# releq configuration file
-num_episodes: 2
-#supported_bitwidths: [2, 3, 4, 5, 8]
-supported_bitwidths: [4]

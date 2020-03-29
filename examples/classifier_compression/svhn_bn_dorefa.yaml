@@ -22,27 +22,27 @@ quantizers:
     bits_overrides:
       classifier.0:
         acts: null
-        wts: 32
+        wts: 5
       features.0:
         acts: null
-        wts: 2
+        wts: 5
       features.10:
         acts: null
-        wts: 32
+        wts: 5
       features.14:
         acts: null
-        wts: 32
+        wts: 5
       features.17:
         acts: null
-        wts: 32
+        wts: 5
       features.21:
         acts: null
-        wts: 32
+        wts: 5
       features.3:
         acts: null
-        wts: 32
+        wts: 5
       features.7:
         acts: null
-        wts: 32
+        wts: 5
     bits_weights: 8
     class: DorefaQuantizer

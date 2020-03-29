@@ -22,18 +22,18 @@ quantizers:
     bits_overrides:
       conv1:
         acts: null
-        wts: 5
+        wts: 3
       conv2:
         acts: null
-        wts: 4
+        wts: 2
       fc1:
         acts: null
         wts: 3
       fc2:
         acts: null
-        wts: 3
+        wts: 4
       fc3:
         acts: null
-        wts: 5
+        wts: 2
     bits_weights: 8
     class: WRPNQuantizer

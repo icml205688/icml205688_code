@@ -22,24 +22,24 @@ quantizers:
     bits_overrides:
       features.11:
         acts: null
-        wts: 4
+        wts: 5
       features.13:
         acts: null
-        wts: 2
+        wts: 5
       features.16:
         acts: null
-        wts: 3
+        wts: 5
       features.18:
         acts: null
-        wts: 8
+        wts: 5
       features.3:
         acts: null
-        wts: 4
+        wts: 5
       features.6:
         acts: null
-        wts: 2
+        wts: 5
       features.8:
         acts: null
-        wts: 8
+        wts: 5
     bits_weights: 8
     class: WRPNQuantizer

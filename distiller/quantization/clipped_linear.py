@@ -132,6 +132,7 @@ def dorefa_quantize_param(param_fp, param_meta):
     out = out / (2 * out.abs().max()) + 0.5
     out = LinearQuantizeSTE.apply(out, scale, zero_point, True, False)
     out = 2 * out - 1
+    #print(set(out.data.cpu().numpy().ravel()))
     return out
 
 

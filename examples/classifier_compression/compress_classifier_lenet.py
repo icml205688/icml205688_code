@@ -49,10 +49,7 @@ models, or with the provided sample models:
 - ResNet for CIFAR: https://github.com/junyuseu/pytorch-cifar-models
 - MobileNet for ImageNet: https://github.com/marvis/pytorch-mobilenet
 """
-
-
-
-
+from __future__ import division
 import math
 import argparse
 import time
@@ -70,7 +67,6 @@ import torch.nn.parallel
 import torch.backends.cudnn as cudnn
 import torch.optim
 import torch.utils.data
-from torchvision import datasets, transforms
 import torchnet.meter as tnt
 script_dir = os.path.dirname(__file__)
 module_path = os.path.abspath(os.path.join(script_dir, '..', '..'))
@@ -84,10 +80,39 @@ from distiller.data_loggers import *
 import distiller.quantization as quantization
 from models import ALL_MODEL_NAMES, create_model
 
+import math
+pi = math.pi
+
+import csv 
 
 # Logger handle
 msglogger = None
 
+#--------------------------------------------------------------------
+""" logging the losses """
+def write_to_csv2(step_data):
+    with open('sin2Reg_cifar10_losses_log.csv', 'a') as csvFile:
+        writer = csv.writer(csvFile)
+        writer.writerow(step_data)
+# initializing acc_cache dict to use it as global var.
+acc_cache = {}
+headers = ['tot_loss','sin2_loss']
+with open('sin2Reg_cifar10_losses_log.csv', 'w') as writeFile:
+    writer = csv.writer(writeFile)
+    writer.writerow(headers)
+#--------------------------------------------------------------------
+""" logging the accs """
+def write_to_csv(step_data):
+    with open('sin2Reg_cifar10_log.csv', 'a') as csvFile:
+        writer = csv.writer(csvFile)
+        writer.writerow(step_data)
+# initializing acc_cache dict to use it as global var.
+acc_cache = {}
+headers = ['EPOCH','TOP1-ACC','TOP5-ACC','VAL-LOSS']
+with open('sin2Reg_cifar10_log.csv', 'w') as writeFile:
+    writer = csv.writer(writeFile)
+    writer.writerow(headers)
+#--------------------------------------------------------------------
 
 def float_range(val_str):
     val = float(val_str)
@@ -331,6 +356,10 @@ def main():
     # Create the model
     model = create_model(args.pretrained, args.dataset, args.arch,
                          parallel=not args.load_serialized, device_ids=args.gpus)
+    #DEBUG
+    print('++++++++++++++++++++++++++++++++++++++++++')
+    print(model)
+    print('++++++++++++++++++++++++++++++++++++++++++')
     compression_scheduler = None
     # Create a couple of logging backends.  TensorBoardLogger writes log files in a format
     # that can be read by Google's Tensor Board.  PythonLogger writes to the Python logger.
@@ -346,12 +375,9 @@ def main():
         model, compression_scheduler, start_epoch = apputils.load_checkpoint(
             model, chkpt_file=args.resume)
         model.cuda()
-        """ loading mmdnn model"""
-        #model = torch.load("args.resume")
 
     # Define loss function (criterion) and optimizer
     criterion = nn.CrossEntropyLoss().cuda()
-    #optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, betas=(0.9, 0.999), eps=1e-08, weight_decay=1e-02, amsgrad=False)
     optimizer = torch.optim.SGD(model.parameters(), lr=args.lr,
                                 momentum=args.momentum,
                                 weight_decay=args.weight_decay)
@@ -373,34 +399,6 @@ def main():
         args.workers, args.validation_size, args.deterministic)
     msglogger.info('Dataset sizes:\n\ttraining=%d\n\tvalidation=%d\n\ttest=%d',
                    len(train_loader.sampler), len(val_loader.sampler), len(test_loader.sampler))
-   
-   
-    # AHMED
-    # normalized test loader -----------------------
-    test_loader = torch.utils.data.DataLoader(
-        datasets.MNIST('../../../data.mnist', train=False, transform=transforms.Compose([
-                           transforms.ToTensor()
-                       ])),
-        batch_size=args.batch_size, shuffle=True)
-    # ---------------------------------------------------------------------------------- 
-
-    """
-    print('%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%')
-    print(type(test_loader))
-    for data, target in test_loader:
-        print((data.data.cpu().numpy().shape))
-        tmp = data.data[0].cpu().numpy()
-        print(np.sum(tmp))
-        print(np.max(tmp))
-        print(np.min(tmp))
-        print(np.mean(tmp))
-        print(np.var(tmp))
-        print(data.data[0])
-        print('--------------------------------------')
-        break 
-    print(test_loader)
-    """
-    # -----------------------------------------------------------------------------------
 
     activations_collectors = create_activation_stats_collectors(model, collection_phase=args.activation_stats)
 
@@ -442,8 +440,7 @@ def main():
         msglogger.info('\n')
         if compression_scheduler:
             compression_scheduler.on_epoch_begin(epoch)
-        # AHMEDTE
-        """
+
         # Train for one epoch
         with collectors_context(activations_collectors["train"]) as collectors:
             train(train_loader, model, criterion, optimizer, epoch, compression_scheduler,
@@ -461,8 +458,12 @@ def main():
                                                 collector=collectors["sparsity"])
             save_collectors_data(collectors, msglogger.logdir)
 
+        """ Ahmed: logging """
+        write_to_csv([epoch, top1, top5, vloss])
+
         f= open("val_accuracy.txt","w+")
         f.write(str(top1))
+        #f.write(str(top5))
         f.close()
         stats = ('Peformance/Validation/',
                  OrderedDict([('Loss', vloss),
@@ -474,8 +475,6 @@ def main():
         if compression_scheduler:
             compression_scheduler.on_epoch_end(epoch, optimizer)
 
-        """
-        top1 = 99 # remove
         # Update the list of top scores achieved so far, and save the checkpoint
         is_best = top1 > best_epochs[-1].top1
         if top1 > best_epochs[0].top1:
@@ -490,11 +489,8 @@ def main():
                                  best_epochs[-1].top1, is_best, args.name, msglogger.logdir)
 
     # Finally run results on the test set
-    top1, _, _ = test(test_loader, model, criterion, [pylogger], activations_collectors, args=args)
-    f= open("val_accuracy.txt","w+")
-    f.write(str(top1))
-    f.close()
-        
+    #test(test_loader, model, criterion, [pylogger], activations_collectors, args=args)
+
 
 OVERALL_LOSS_KEY = 'Overall Loss'
 OBJECTIVE_LOSS_KEY = 'Objective Loss'
@@ -545,13 +541,88 @@ def train(train_loader, model, criterion, optimizer, epoch,
         else:
             output = args.kd_policy.forward(inputs)
         if not args.earlyexit_lossweights:
-            loss = criterion(output, target)
+            # ------------------------------------------------------------------ AHMED edit sin2-reg - April19
+            """ adding sin2 regularization here"""
+            qbits_dict = {}
+            sin2_reg_loss = 0
+            #print('weights:', (model.module.conv2.weight.size()))
+            bw = 3
+            qbits_dict['conv1'] = bw
+            qbits_dict['conv2'] = bw
+            qbits_dict['fc1'] = bw
+            qbits_dict['fc2'] = bw
+            qbits_dict['fc3'] = bw
+
+
+            # ----------------------------------
+            q = 2
+            power = 2
+            #step = 1/(2**(q)-0.5) # dorefa 
+            #shift = step/2  
+
+            step = 1/(2**(q)-1) # wrpn
+            shift = 0 
+            
+            #amplitude   = (np.sin(pi*(weight+step/2)/(step)))**2
+
+            """
+            # ---------------------
+            kernel = model.module.conv2.float_weight
+            if (train_step == 0) and (epoch % 5 == 0):
+                w1 = kernel.data.cpu().numpy()
+                np.save('weights_cifar10_sin2Reg/cifar10_conv1_'+str(epoch)+'_'+str(train_step), w1)
+                print('+++++++++++++++++++++++++++++++')
+                print(train_step)
+            # ---------------------
+            """
+
+            
+            sin2_func_1 = 0
+            sin2_func_2 = 0
+            sin2_func_3 = 0
+            sin2_func_4 = 0
+
+            #kernel = model.module.conv1.weight
+            #print(sin2_func_1.data[0])
+            #q = 2
+            #step = 1/(2**(q)-0.5) # dorefa 
+            #shift = step/2  
+            kernel = model.module.conv1.float_weight
+            sin2_func_1 =torch.mean((torch.sin(pi*(kernel+shift)/(step)))**power) # dorefa
+
+            q = 1
+            step = 1/(2**(q)-1) # wrpn
+            shift = 0 
+            kernel = model.module.conv2.float_weight
+            sin2_func_2 =torch.mean((torch.sin(pi*(kernel+shift)/(step)))**power) # dorefa
+
+            q = 2
+            step = 1/(2**(q)-1) # wrpn
+            shift = 0 
+            kernel = model.module.fc1.float_weight
+            sin2_func_3 =torch.mean((torch.sin(pi*(kernel+shift)/(step)))**power) # dorefa
+
+            kernel = model.module.fc2.float_weight
+            sin2_func_4 =torch.mean((torch.sin(pi*(kernel+shift)/(step)))**power) # dorefa
+
+            sin2_reg_loss = sin2_func_1 + sin2_func_2 + sin2_func_3 + sin2_func_4  
+
+            #loss = criterion(output, target) 
+            cost_factor = 0
+            reg_loss = cost_factor*sin2_reg_loss
+            loss = criterion(output, target) + reg_loss
+
+            #print('sin2_reg_LOSS:', sin2_reg_loss.data[0])
+            #print('total_LOSS:', loss.data[0])
+            #print('MODEL:', (model.state_dict()))
+            # ------------------------------------------------------------------ AHMED edit sin2-reg - April19
             # Measure accuracy and record loss
             classerr.add(output.data, target)
         else:
             # Measure accuracy and record loss
             loss = earlyexit_loss(output, target, criterion, args)
         losses[OBJECTIVE_LOSS_KEY].add(loss.item())
+        #print('sin2_reg_LOSS:', sin2_reg_loss.data[0])
 
         if compression_scheduler:
             # Before running the backward phase, we allow the scheduler to modify the loss
@@ -567,7 +638,7 @@ def train(train_loader, model, criterion, optimizer, epoch,
 
         # Compute the gradient and do SGD step
         optimizer.zero_grad()
-        loss.backward()
+        loss.backward(retain_graph=True)
         optimizer.step()
         if compression_scheduler:
             compression_scheduler.on_minibatch_end(epoch, train_step, steps_per_epoch, optimizer)
@@ -604,6 +675,15 @@ def train(train_loader, model, criterion, optimizer, epoch,
                                             loggers)
         end = time.time()
 
+    kernel = model.module.conv1.float_weight
+    print('00000000000000000000')
+    w1 = kernel.data.cpu().numpy()
+    np.save('w1_cifar', w1)
+            
+    print('======================================', reg_loss.data[0])
+    write_to_csv2([loss.data.cpu().numpy(), reg_loss.data.cpu().numpy()])
+
+            
 
 def validate(val_loader, model, criterion, loggers, args, epoch=-1):
     """Model validation"""
@@ -651,32 +731,9 @@ def _validate(data_loader, model, criterion, loggers, args, epoch=-1):
     model.eval()
 
     end = time.time()
-    # AHMED 
-    #for validation_step, (inputs, target) in enumerate(data_loader):
     for validation_step, (inputs, target) in enumerate(data_loader):
         with torch.no_grad():
             inputs, target = inputs.to('cuda'), target.to('cuda')
-            #print("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$")
-            #print(type(inputs))
-            #print(inputs.size())
-            #print(np.sum(inputs.data.cpu().numpy()))
-            # (DEBUG) image = np.load("image_ones.npy")
-            # (DEBUG) inputs = torch.ones([1,1,28,28], dtype=torch.float32)
-            #image = np.load("image_test.npy")
-            #inputs = torch.tensor(image)
-            #inputs = inputs.permute(0,3,1,2)
-            #print(type(inputs))
-            #print(np.sum(inputs.data.cpu().numpy()))
-            #print(target.data.cpu().numpy())
-            #target = torch.tensor([7])
-            #target = target.to('cuda')
-            #sample = inputs.data.cpu().numpy()
-            #print(sample)
-            #print(np.sum(sample))
-            #print(np.max(sample))
-            #print(np.min(sample))
-            #print(np.mean(sample))
-            #print(np.var(sample))
             # compute output from model
             output = model(inputs)
 
@@ -720,8 +777,6 @@ def _validate(data_loader, model, criterion, loggers, args, epoch=-1):
 
                 distiller.log_training_progress(stats, None, epoch, steps_completed,
                                                 total_steps, args.print_freq, loggers)
-        break    
-     
     if not args.earlyexit_thresholds:
         msglogger.info('==> Top1: %.3f    Top5: %.3f    Loss: %.3f\n',
                        classerr.value()[0], classerr.value()[1], losses['objective_loss'].mean)
@@ -904,12 +959,3 @@ if __name__ == '__main__':
         if msglogger is not None:
             msglogger.info('')
             msglogger.info('Log file for this run: ' + os.path.realpath(msglogger.log_filename))
-
-
-
-
-
-
-
-
-

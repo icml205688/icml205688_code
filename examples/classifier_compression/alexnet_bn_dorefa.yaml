@@ -22,19 +22,19 @@ quantizers:
     bits_overrides:
       classifier.1:
         acts: null
-        wts: 5
+        wts: 8
       classifier.4:
         acts: null
-        wts: 4
+        wts: 8
       features.10:
         acts: null
-        wts: 3
+        wts: 8
       features.3:
         acts: null
-        wts: 3
+        wts: 8
       features.6:
         acts: null
-        wts: 4
+        wts: 8
       features.8:
         acts: null
         wts: 8
